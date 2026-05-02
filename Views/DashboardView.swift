@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @ObservedObject var viewModel: MainViewModel
+    @ObservedObject var configManager = ConfigManager.shared
     @EnvironmentObject var appFont: AppFont
     @State private var connectionLogs: [ConnectionLogEntry] = []
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -10,6 +11,7 @@ struct DashboardView: View {
         ScrollView {
             VStack(spacing: 20) {
                 connectionHeroCard
+                proxyModeCard
                 trafficStatsCard
                 recentConnections
             }
@@ -108,56 +110,113 @@ struct DashboardView: View {
     // MARK: - Traffic Stats Card
 
     private var trafficStatsCard: some View {
-        HStack(spacing: 0) {
-            // Upload
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.up")
-                        .font(appFont.caption)
-                        .foregroundColor(.blue)
-                    Text("上传")
-                        .font(appFont.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                Text(viewModel.trafficStats.uploadSpeedText)
+        HStack(spacing: 16) {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.title2)
+                .foregroundColor(.accentColor)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("流量统计")
+                    .font(appFont.subheadline)
+                    .foregroundColor(.secondary)
+                Text(viewModel.trafficStats.totalText)
                     .font(appFont.title2)
                     .monospacedDigit()
-                Text("总计 \(viewModel.trafficStats.totalUploadText)")
+                Text("速度 \(viewModel.trafficStats.speedText)")
                     .font(appFont.caption2)
                     .foregroundColor(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(24)
 
-            Divider()
-                .padding(.vertical, 16)
-
-            // Download
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.down")
-                        .font(appFont.caption)
-                        .foregroundColor(.green)
-                    Text("下载")
-                        .font(appFont.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                Text(viewModel.trafficStats.downloadSpeedText)
-                    .font(appFont.title2)
-                    .monospacedDigit()
-                Text("总计 \(viewModel.trafficStats.totalDownloadText)")
-                    .font(appFont.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(24)
+            Spacer()
         }
+        .padding(24)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
+    }
+
+    // MARK: - Proxy Mode Card
+
+    private var proxyModeCard: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "network")
+                    .font(.title2)
+                    .foregroundColor(.secondary)
+                Text("代理模式")
+                    .font(appFont.headline)
+                Spacer()
+            }
+
+            HStack(spacing: 12) {
+                Button(action: { switchMode(.rule) }) {
+                    VStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title)
+                            .opacity(configManager.proxyMode == .rule ? 1 : 0)
+                        Text("规则代理")
+                            .font(appFont.body)
+                        Text("国内直连")
+                            .font(appFont.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(configManager.proxyMode == .rule ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(configManager.proxyMode == .rule ? Color.accentColor : Color.gray.opacity(0.3), lineWidth: 2)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Button(action: { switchMode(.global) }) {
+                    VStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title)
+                            .opacity(configManager.proxyMode == .global ? 1 : 0)
+                        Text("全局代理")
+                            .font(appFont.body)
+                        Text("全部走代理")
+                            .font(appFont.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(configManager.proxyMode == .global ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(configManager.proxyMode == .global ? Color.accentColor : Color.gray.opacity(0.3), lineWidth: 2)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(20)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        )
+    }
+
+    private func switchMode(_ mode: ConfigManager.ProxyMode) {
+        configManager.proxyMode = mode
+        configManager.save()
+        if viewModel.isConnected {
+            viewModel.disconnect()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                viewModel.handleToggle(true)  // 用 lastConnectedNode 重连
+            }
+        }
     }
 
     // MARK: - Recent Connections

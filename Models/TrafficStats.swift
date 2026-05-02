@@ -23,6 +23,16 @@ struct TrafficStats: Codable {
         ByteCountFormatter.string(fromByteCount: totalDownload, countStyle: .binary)
     }
 
+    var totalText: String {
+        ByteCountFormatter.string(fromByteCount: totalUpload + totalDownload, countStyle: .binary)
+    }
+
+    var speedText: String {
+        let totalSpeed = uploadSpeed + downloadSpeed
+        if totalSpeed == 0 { return "0 B/s" }
+        return ByteCountFormatter.string(fromByteCount: totalSpeed, countStyle: .binary) + "/s"
+    }
+
     mutating func reset() {
         uploadSpeed = 0
         downloadSpeed = 0

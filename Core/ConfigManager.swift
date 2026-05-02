@@ -12,6 +12,12 @@ class ConfigManager: ObservableObject {
     @Published var logLevel: String = "warning"
     @Published var autoStartAtLogin: Bool = false
     @Published var autoUpdateSubscriptions: Bool = true
+    @Published var proxyMode: ProxyMode = .rule
+
+    enum ProxyMode: String, Codable, CaseIterable {
+        case global = "全局代理"
+        case rule = "规则代理"
+    }
 
     private let saveURL: URL
     private let nodesKey = "saved_nodes"
@@ -161,7 +167,8 @@ class ConfigManager: ObservableObject {
             "httpPort": httpPort,
             "logLevel": logLevel,
             "autoStartAtLogin": autoStartAtLogin,
-            "autoUpdateSubscriptions": autoUpdateSubscriptions
+            "autoUpdateSubscriptions": autoUpdateSubscriptions,
+            "proxyMode": proxyMode.rawValue
         ]
         (settings as NSDictionary).write(to: saveURL.appendingPathComponent("\(settingsKey).plist"), atomically: true)
     }
@@ -183,6 +190,9 @@ class ConfigManager: ObservableObject {
             logLevel = settings["logLevel"] as? String ?? "warning"
             autoStartAtLogin = settings["autoStartAtLogin"] as? Bool ?? false
             autoUpdateSubscriptions = settings["autoUpdateSubscriptions"] as? Bool ?? true
+            if let modeString = settings["proxyMode"] as? String {
+                proxyMode = ProxyMode(rawValue: modeString) ?? .rule
+            }
         }
     }
 

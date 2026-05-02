@@ -4,6 +4,7 @@ struct MainView: View {
     @StateObject private var viewModel = MainViewModel()
     @State private var selectedTab: Tab = .dashboard
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @EnvironmentObject var appFont: AppFont
 
     enum Tab: String, CaseIterable, Identifiable {
         case dashboard = "概览"
@@ -48,16 +49,21 @@ struct MainView: View {
 
             Section("连接") {
                 Label("概览", systemImage: "gauge.with.dots.needle.67percent").tag(Tab.dashboard)
+                    .font(appFont.body)
                 Label("节点", systemImage: "server.rack").tag(Tab.servers)
+                    .font(appFont.body)
                 Label("订阅", systemImage: "link").tag(Tab.subscriptions)
+                    .font(appFont.body)
             }
 
             Section("工具") {
                 Label("日志", systemImage: "doc.text").tag(Tab.logs)
+                    .font(appFont.body)
             }
 
             Section {
                 Label("设置", systemImage: "gearshape").tag(Tab.settings)
+                    .font(appFont.body)
             }
         }
         .listStyle(.sidebar)
@@ -65,18 +71,18 @@ struct MainView: View {
     }
 
     private var sidebarHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
                 Image(systemName: "globe")
-                    .font(.title3)
+                    .font(.system(size: appFont.base(24)))
                     .foregroundColor(.accentColor)
                 Text("V2Ray")
-                    .font(.system(.title3, weight: .semibold))
+                    .font(.system(size: appFont.base(20), weight: .semibold))
             }
 
             HStack {
                 Text("VPN")
-                    .font(.caption)
+                    .font(appFont.caption)
                     .foregroundColor(.secondary)
                 Spacer()
                 Toggle("", isOn: Binding(
@@ -84,19 +90,19 @@ struct MainView: View {
                     set: { viewModel.handleToggle($0) }
                 ))
                 .toggleStyle(.switch)
-                .controlSize(.small)
+                .controlSize(.regular)
             }
 
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Circle()
                     .fill(viewModel.isConnected ? Color.green : Color.gray.opacity(0.4))
-                    .frame(width: 8, height: 8)
+                    .frame(width: 10, height: 10)
                 Text(viewModel.isConnected ? "已连接" : "未连接")
-                    .font(.caption2)
+                    .font(appFont.caption)
                     .foregroundColor(viewModel.isConnected ? .green : .secondary)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
         .padding(.horizontal, 4)
     }
 

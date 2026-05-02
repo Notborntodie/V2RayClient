@@ -55,9 +55,9 @@ class AppFont: ObservableObject {
         }
     }
 
-    // MARK: - Private
+    // MARK: - Private (now public for direct use)
 
-    private func base(_ standard: CGFloat) -> CGFloat {
+    func base(_ standard: CGFloat) -> CGFloat {
         // 每级增大 4pt，老人默认 scale=1 即比标准大 4pt
         return standard + CGFloat(scale) * 4
     }
@@ -68,7 +68,7 @@ class AppFont: ObservableObject {
 
     private static func loadScale() -> Int {
         let saved = UserDefaults.standard.integer(forKey: "AppFontScale")
-        return saved == 0 ? 1 : saved  // 默认大字体
+        return saved == 0 ? 2 : saved  // 默认更大字体
     }
 }
 

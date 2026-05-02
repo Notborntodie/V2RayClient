@@ -6,6 +6,7 @@ class MainViewModel: ObservableObject {
     @Published var isProxyEnabled: Bool = false
     @Published var connectedSince: Date?
     @Published var selectedNode: ServerNode?
+    @Published var lastConnectedNode: ServerNode?  // 记住上次连接的节点
     @Published var connectionStatus: ConnectionStatus = .disconnected
     @Published var trafficStats = TrafficStats()
     @Published var errorMessage: String?
@@ -53,9 +54,7 @@ class MainViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] running in
                 self?.isConnected = running
-                if !running {
-                    self?.isProxyEnabled = false
-                }
+                // 不在这里设置 isProxyEnabled，由 connect/disconnect 方法控制
             }
             .store(in: &cancellables)
 
@@ -70,13 +69,13 @@ class MainViewModel: ObservableObject {
 
     func handleToggle(_ enabled: Bool) {
         if enabled {
-            if selectedNode == nil {
-                selectedNode = lowestLatencyNode
-            }
-            guard let node = selectedNode else {
+            // 优先用上次连接的节点，其次用选中的节点，最后选最低延迟
+            let node = lastConnectedNode ?? selectedNode ?? lowestLatencyNode
+            guard let node = node else {
                 isProxyEnabled = false
                 return
             }
+            selectedNode = node
             connect(to: node)
         } else {
             disconnect()
@@ -104,7 +103,8 @@ class MainViewModel: ObservableObject {
                 node: node,
                 socksPort: configManager.socksPort,
                 httpPort: configManager.httpPort,
-                logLevel: configManager.logLevel
+                logLevel: configManager.logLevel,
+                proxyMode: configManager.proxyMode
             )
 
             // 设置系统代理
@@ -116,6 +116,7 @@ class MainViewModel: ObservableObject {
             connectionStatus = .connected
             isProxyEnabled = true
             connectedSince = Date()
+            lastConnectedNode = node  // 记住连接的节点
         } catch {
             connectionStatus = .error(error.localizedDescription)
             errorMessage = error.localizedDescription

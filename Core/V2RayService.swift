@@ -15,6 +15,9 @@ class V2RayService: ObservableObject {
     private var trafficTimer: Timer?
     private var lastUpload: Int64 = 0
     private var lastDownload: Int64 = 0
+    private var baselineUpload: Int64 = 0
+    private var baselineDownload: Int64 = 0
+    private var hasBaseline = false
 
     var v2rayBinaryPath: String {
         let bundlePath = Bundle.main.bundlePath + "/Contents/Resources/v2ray"
@@ -28,10 +31,10 @@ class V2RayService: ObservableObject {
         return "/usr/local/bin/v2ray"
     }
 
-    func start(node: ServerNode, socksPort: Int = 10808, httpPort: Int = 10809, logLevel: String = "warning") throws {
+    func start(node: ServerNode, socksPort: Int = 10808, httpPort: Int = 10809, logLevel: String = "warning", proxyMode: ConfigManager.ProxyMode = .rule) throws {
         stop()
 
-        let config = V2RayConfig(node: node, socksPort: socksPort, httpPort: httpPort, logLevel: logLevel)
+        let config = V2RayConfig(node: node, socksPort: socksPort, httpPort: httpPort, logLevel: logLevel, proxyMode: proxyMode)
         let configString = config.generate()
 
         let tempDir = FileManager.default.temporaryDirectory
@@ -86,6 +89,7 @@ class V2RayService: ObservableObject {
         trafficStats.reset()
         lastUpload = 0
         lastDownload = 0
+        hasBaseline = false
 
         if let path = configPath {
             try? FileManager.default.removeItem(atPath: path)
@@ -111,6 +115,14 @@ class V2RayService: ObservableObject {
         trafficStats.reset()
         lastUpload = 0
         lastDownload = 0
+        hasBaseline = false
+        hasBaseline = false
+        // Record baseline (lo0 bytes before proxy starts)
+        if let (ibytes, obytes) = readLo0Stats() {
+            baselineUpload = obytes
+            baselineDownload = ibytes
+            hasBaseline = true
+        }
         trafficTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.queryTraffic()
         }
@@ -122,116 +134,41 @@ class V2RayService: ObservableObject {
     }
 
     private func queryTraffic() {
-        guard isRunning else { return }
-        DispatchQueue.global().async { [weak self] in
-            self?.queryStatsViaGRPC()
-        }
+        guard isRunning, hasBaseline else { return }
+        guard let (ibytes, obytes) = readLo0Stats() else { return }
+
+        // Proxy download = lo0 input bytes since baseline
+        // Proxy upload = lo0 output bytes since baseline
+        let download = max(0, ibytes - baselineDownload)
+        let upload = max(0, obytes - baselineUpload)
+
+        let oldUp = lastUpload
+        let oldDown = lastDownload
+        trafficStats.totalUpload = upload
+        trafficStats.totalDownload = download
+        trafficStats.uploadSpeed = max(0, upload - oldUp)
+        trafficStats.downloadSpeed = max(0, download - oldDown)
+        lastUpload = upload
+        lastDownload = download
     }
 
-    private func pollNetworkStats() {
-        // Use v2ray stats API: query all user traffic
-        // v2ray 5.x supports REST-like stats query
-        // For v2ray 4.x, we need gRPC - use a simpler approach
-
-        // Approach: measure bytes on local proxy ports via netstat
+    /// Read lo0 (loopback) interface cumulative byte counters via netstat
+    private func readLo0Stats() -> (ibytes: Int64, obytes: Int64)? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        task.arguments = ["bash", "-c", "netstat -I lo0 -b 2>/dev/null || echo '0 0'"]
-
+        task.arguments = ["bash", "-c", "netstat -I lo0 -b -n 2>/dev/null | awk 'NR==3 {print $7, $10}'"]
         let pipe = Pipe()
         task.standardOutput = pipe
         try? task.run()
         task.waitUntilExit()
 
-        // Fallback: parse v2ray log for traffic data
-        // Look for lines containing traffic stats
-        var uplink: Int64 = 0
-        var downlink: Int64 = 0
-
-        for line in logs.suffix(50) {
-            if line.contains("uplink") || line.contains("downloaded") {
-                // v2ray sometimes logs: "uplink: xxx bytes, downlink: xxx bytes"
-                if let match = line.range(of: #"uplink:\s*(\d+)"#, options: .regularExpression) {
-                    let numStr = String(line[match]).replacingOccurrences(of: "uplink:", with: "").trimmingCharacters(in: .whitespaces)
-                    uplink = Int64(numStr) ?? 0
-                }
-                if let match = line.range(of: #"downlink:\s*(\d+)"#, options: .regularExpression) {
-                    let numStr = String(line[match]).replacingOccurrences(of: "downlink:", with: "").trimmingCharacters(in: .whitespaces)
-                    downlink = Int64(numStr) ?? 0
-                }
-            }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let parts = output.split(separator: " ").compactMap { Int64($0) }
+        if parts.count >= 2 {
+            return (parts[0], parts[1])
         }
-
-        // If no log-based stats, use the grpc stats API call
-        if uplink == 0 && downlink == 0 {
-            queryStatsViaGRPC()
-            return
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            let oldUp = self.lastUpload
-            let oldDown = self.lastDownload
-            self.trafficStats.totalUpload = uplink
-            self.trafficStats.totalDownload = downlink
-            self.trafficStats.uploadSpeed = max(0, uplink - oldUp)
-            self.trafficStats.downloadSpeed = max(0, downlink - oldDown)
-            self.lastUpload = uplink
-            self.lastDownload = downlink
-        }
-    }
-
-    private func queryStatsViaGRPC() {
-        // Call v2ray stats gRPC API using the v2ray binary's api command
-        let binary = v2rayBinaryPath
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: binary)
-        task.arguments = ["api", "statsquery", "-s", "127.0.0.1:15481", "-pattern", ""]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe()
-
-        do {
-            try task.run()
-            // Don't wait too long
-            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
-                if task.isRunning { task.terminate() }
-            }
-            task.waitUntilExit()
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard let output = String(data: data, encoding: .utf8) else { return }
-
-            var uplink: Int64 = 0
-            var downlink: Int64 = 0
-
-            // Parse output like: "stat: <name> >>>> <value>"
-            for line in output.components(separatedBy: "\n") {
-                if line.contains(">>>") {
-                    let parts = line.components(separatedBy: ">>>")
-                    guard parts.count == 2 else { continue }
-                    let name = parts[0].trimmingCharacters(in: .whitespaces)
-                    let value = Int64(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
-                    if name.contains("uplink") { uplink += value }
-                    if name.contains("downlink") { downlink += value }
-                }
-            }
-
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                let oldUp = self.lastUpload
-                let oldDown = self.lastDownload
-                self.trafficStats.totalUpload = uplink
-                self.trafficStats.totalDownload = downlink
-                self.trafficStats.uploadSpeed = max(0, uplink - oldUp)
-                self.trafficStats.downloadSpeed = max(0, downlink - oldDown)
-                self.lastUpload = uplink
-                self.lastDownload = downlink
-            }
-        } catch {
-            // Silently fail
-        }
+        return nil
     }
 
     // MARK: - Private

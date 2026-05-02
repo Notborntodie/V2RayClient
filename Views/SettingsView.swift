@@ -2,119 +2,192 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
+    @EnvironmentObject var appFont: AppFont
     @State private var configImportPath = ""
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                proxySettingsSection
-                subscriptionSettingsSection
-                advancedSection
+            VStack(spacing: 20) {
+                // 代理模式
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("代理模式")
+                        .font(appFont.headline)
+
+                    HStack(spacing: 16) {
+                        Button(action: { viewModel.proxyMode = .rule }) {
+                            VStack(spacing: 10) {
+                                Image(systemName: viewModel.proxyMode == .rule ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(viewModel.proxyMode == .rule ? .accentColor : .gray)
+                                Text("规则代理")
+                                    .font(appFont.body)
+                                Text("国内直连")
+                                    .font(appFont.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(16)
+                            .background(viewModel.proxyMode == .rule ? Color.accentColor.opacity(0.1) : Color.clear)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(viewModel.proxyMode == .rule ? Color.accentColor : Color.gray.opacity(0.3), lineWidth: 2)
+                            )
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Button(action: { viewModel.proxyMode = .global }) {
+                            VStack(spacing: 10) {
+                                Image(systemName: viewModel.proxyMode == .global ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(viewModel.proxyMode == .global ? .accentColor : .gray)
+                                Text("全局代理")
+                                    .font(appFont.body)
+                                Text("全部走代理")
+                                    .font(appFont.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(16)
+                            .background(viewModel.proxyMode == .global ? Color.accentColor.opacity(0.1) : Color.clear)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(viewModel.proxyMode == .global ? Color.accentColor : Color.gray.opacity(0.3), lineWidth: 2)
+                            )
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(20)
+                .background(.regularMaterial)
+                .cornerRadius(16)
+
+                // 端口设置
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("本地端口")
+                        .font(appFont.headline)
+
+                    HStack(spacing: 20) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("SOCKS5")
+                                .font(appFont.caption)
+                            TextField("", value: $viewModel.socksPort, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .font(appFont.body)
+                                .frame(width: 100)
+                        }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("HTTP")
+                                .font(appFont.caption)
+                            TextField("", value: $viewModel.httpPort, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .font(appFont.body)
+                                .frame(width: 100)
+                        }
+                        Spacer()
+                    }
+                }
+                .padding(20)
+                .background(.regularMaterial)
+                .cornerRadius(16)
+
+                // 日志和启动
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("其他")
+                        .font(appFont.headline)
+
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("日志级别")
+                                .font(appFont.body)
+                            Spacer()
+                            Picker("", selection: $viewModel.logLevel) {
+                                ForEach(viewModel.logLevels, id: \.self) { Text($0) }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 200)
+                        }
+
+                        Toggle("开机自动启动", isOn: $viewModel.autoStartAtLogin)
+                            .font(appFont.body)
+
+                        Toggle("自动更新订阅", isOn: $viewModel.autoUpdateSubscriptions)
+                            .font(appFont.body)
+                    }
+                }
+                .padding(20)
+                .background(.regularMaterial)
+                .cornerRadius(16)
+
+                // 字体大小
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("字体大小")
+                        .font(appFont.headline)
+
+                    HStack(spacing: 16) {
+                        Button(action: { appFont.decrease() }) {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 32))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(appFont.scale == 0)
+
+                        Text(appFont.scaleLabel)
+                            .font(appFont.title2)
+                            .frame(minWidth: 60)
+
+                        Button(action: { appFont.increase() }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 32))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(appFont.scale == 3)
+
+                        Spacer()
+
+                        Text("⌘+ / ⌘-")
+                            .font(appFont.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(20)
+                .background(.regularMaterial)
+                .cornerRadius(16)
+
+                // 关于
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("关于")
+                        .font(appFont.headline)
+
+                    HStack {
+                        Text("版本")
+                            .font(appFont.body)
+                        Spacer()
+                        Text("1.0")
+                            .font(appFont.body)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(20)
+                .background(.regularMaterial)
+                .cornerRadius(16)
+
+                // 保存按钮
+                Button(action: { viewModel.save() }) {
+                    Text("保存设置")
+                        .font(appFont.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(14)
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
             }
             .padding(24)
         }
-    }
-
-    // MARK: - Proxy Settings
-
-    private var proxySettingsSection: some View {
-        Form {
-            Section("本地代理端口") {
-                LabeledContent("SOCKS5 端口") {
-                    TextField("", value: $viewModel.socksPort, format: .number)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
-                }
-                LabeledContent("HTTP 端口") {
-                    TextField("", value: $viewModel.httpPort, format: .number)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
-                }
-            }
-
-            Section("日志") {
-                LabeledContent("日志级别") {
-                    Picker("", selection: $viewModel.logLevel) {
-                        ForEach(viewModel.logLevels, id: \.self) { level in
-                            Text(level).tag(level)
-                        }
-                    }
-                    .frame(width: 120)
-                }
-            }
-
-            Section {
-                Button("保存设置") {
-                    viewModel.save()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    // MARK: - Subscription Settings
-
-    private var subscriptionSettingsSection: some View {
-        Form {
-            Section("自动更新") {
-                Toggle("自动更新订阅", isOn: $viewModel.autoUpdateSubscriptions)
-            }
-
-            Section("导入") {
-                HStack {
-                    TextField("配置文件路径", text: $configImportPath)
-                        .textFieldStyle(.roundedBorder)
-                    Button("浏览") {
-                        let panel = NSOpenPanel()
-                        panel.allowedContentTypes = [.json]
-                        panel.canChooseDirectories = false
-                        if panel.runModal() == .OK, let url = panel.url {
-                            configImportPath = url.path
-                        }
-                    }
-                    Button("导入") {
-                        if let node = viewModel.importConfig(from: configImportPath) {
-                            viewModel.configManager.addNode(node)
-                            configImportPath = ""
-                        }
-                    }
-                    .disabled(configImportPath.isEmpty)
-                }
-            }
-
-            Section {
-                Button("保存设置") {
-                    viewModel.save()
-                }
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    // MARK: - Advanced Settings
-
-    private var advancedSection: some View {
-        Form {
-            Section("启动") {
-                Toggle("开机自动启动", isOn: $viewModel.autoStartAtLogin)
-            }
-
-            Section("关于") {
-                LabeledContent("版本") {
-                    Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
-                }
-                LabeledContent("V2Ray 核心") {
-                    Text("内置")
-                }
-            }
-
-            Section {
-                Button("保存设置") {
-                    viewModel.save()
-                }
-            }
-        }
-        .formStyle(.grouped)
     }
 }

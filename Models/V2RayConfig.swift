@@ -6,12 +6,14 @@ struct V2RayConfig {
     let socksPort: Int
     let httpPort: Int
     let logLevel: String
+    let proxyMode: ConfigManager.ProxyMode
 
-    init(node: ServerNode, socksPort: Int = 10808, httpPort: Int = 10809, logLevel: String = "warning") {
+    init(node: ServerNode, socksPort: Int = 10808, httpPort: Int = 10809, logLevel: String = "warning", proxyMode: ConfigManager.ProxyMode = .rule) {
         self.node = node
         self.socksPort = socksPort
         self.httpPort = httpPort
         self.logLevel = logLevel
+        self.proxyMode = proxyMode
     }
 
     /// 生成 V2Ray JSON 配置
@@ -29,14 +31,16 @@ struct V2RayConfig {
                     "port": socksPort,
                     "listen": "127.0.0.1",
                     "protocol": "socks",
-                    "settings": ["auth": "noauth", "udp": true]
+                    "settings": ["auth": "noauth", "udp": true],
+                    "sniff": ["http", "tls"]
                 ],
                 [
                     "tag": "http",
                     "port": httpPort,
                     "listen": "127.0.0.1",
                     "protocol": "http",
-                    "settings": ["timeout": 0]
+                    "settings": ["timeout": 0],
+                    "sniff": ["http", "tls"]
                 ],
                 [
                     "tag": "api",
@@ -47,14 +51,7 @@ struct V2RayConfig {
                 ]
             ],
             "outbounds": buildOutbounds(),
-            "routing": [
-                "domainStrategy": "AsIs",
-                "rules": [
-                    ["type": "field", "inboundTag": ["api"], "outboundTag": "api"],
-                    ["type": "field", "ip": ["geoip:private"], "outboundTag": "direct"],
-                    ["type": "field", "domain": ["geosite:category-ads-all"], "outboundTag": "block"]
-                ]
-            ]
+            "routing": buildRouting()
         ]
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: config, options: .prettyPrinted),
@@ -69,7 +66,8 @@ struct V2RayConfig {
             "tag": "proxy",
             "protocol": node.protocolType.rawValue,
             "settings": buildOutboundSettings(),
-            "streamSettings": buildStreamSettings()
+            "streamSettings": buildStreamSettings(),
+            "stats": true
         ]
 
         return [
@@ -145,5 +143,28 @@ struct V2RayConfig {
         }
 
         return settings
+    }
+
+    private func buildRouting() -> [String: Any] {
+        var rules: [[String: Any]] = [
+            // API 路由
+            ["type": "field", "inboundTag": ["api"], "outboundTag": "api"],
+            // 广告拦截
+            ["type": "field", "domain": ["geosite:category-ads-all"], "outboundTag": "block"]
+        ]
+
+        if proxyMode == .rule {
+            // 规则模式：国内直连
+            rules.insert(["type": "field", "domain": ["geosite:cn"], "outboundTag": "direct"], at: 1)
+            rules.insert(["type": "field", "ip": ["geoip:cn", "geoip:private"], "outboundTag": "direct"], at: 2)
+        } else {
+            // 全局模式：仅局域网直连
+            rules.insert(["type": "field", "ip": ["geoip:private"], "outboundTag": "direct"], at: 1)
+        }
+
+        return [
+            "domainStrategy": "IPIfNonMatch",
+            "rules": rules
+        ]
     }
 }
