@@ -107,11 +107,15 @@ class MainViewModel: ObservableObject {
                 proxyMode: configManager.proxyMode
             )
 
-            // 设置系统代理
-            try ProxyManager.shared.enableProxy(
+            // 设置系统代理（不抛异常）
+            let proxySuccess = ProxyManager.shared.enableProxy(
                 socksPort: configManager.socksPort,
                 httpPort: configManager.httpPort
             )
+
+            if !proxySuccess {
+                errorMessage = "系统代理设置失败，请手动开启"
+            }
 
             connectionStatus = .connected
             isProxyEnabled = true

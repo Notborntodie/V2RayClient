@@ -24,19 +24,22 @@ class ProxyManager {
     }
 
     /// 启用系统代理
-    func enableProxy(socksPort: Int, httpPort: Int) throws {
+    func enableProxy(socksPort: Int, httpPort: Int) -> Bool {
         let services = getNetworkServices()
+        var success = false
         for service in services {
             // HTTP 代理
-            _ = runCommand(networkSetupPath, arguments: ["-setwebproxy", service, "127.0.0.1", "\(httpPort)"])
-            _ = runCommand(networkSetupPath, arguments: ["-setsecurewebproxy", service, "127.0.0.1", "\(httpPort)"])
+            let r1 = runCommand(networkSetupPath, arguments: ["-setwebproxy", service, "127.0.0.1", "\(httpPort)"])
+            let r2 = runCommand(networkSetupPath, arguments: ["-setsecurewebproxy", service, "127.0.0.1", "\(httpPort)"])
             // SOCKS 代理
-            _ = runCommand(networkSetupPath, arguments: ["-setsocksfirewallproxy", service, "127.0.0.1", "\(socksPort)"])
+            let r3 = runCommand(networkSetupPath, arguments: ["-setsocksfirewallproxy", service, "127.0.0.1", "\(socksPort)"])
             // 启用
-            _ = runCommand(networkSetupPath, arguments: ["-setwebproxystate", service, "on"])
-            _ = runCommand(networkSetupPath, arguments: ["-setsecurewebproxystate", service, "on"])
-            _ = runCommand(networkSetupPath, arguments: ["-setsocksfirewallproxystate", service, "on"])
+            let r4 = runCommand(networkSetupPath, arguments: ["-setwebproxystate", service, "on"])
+            let r5 = runCommand(networkSetupPath, arguments: ["-setsecurewebproxystate", service, "on"])
+            let r6 = runCommand(networkSetupPath, arguments: ["-setsocksfirewallproxystate", service, "on"])
+            if r4 != nil { success = true }
         }
+        return success
     }
 
     /// 禁用系统代理
