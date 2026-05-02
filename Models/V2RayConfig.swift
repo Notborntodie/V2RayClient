@@ -18,6 +18,11 @@ struct V2RayConfig {
     func generate() -> String {
         let config: [String: Any] = [
             "log": ["loglevel": logLevel],
+            "stats": [:],
+            "api": [
+                "tag": "api",
+                "services": ["StatsService"]
+            ],
             "inbounds": [
                 [
                     "tag": "socks",
@@ -32,12 +37,20 @@ struct V2RayConfig {
                     "listen": "127.0.0.1",
                     "protocol": "http",
                     "settings": ["timeout": 0]
+                ],
+                [
+                    "tag": "api",
+                    "port": 15481,
+                    "listen": "127.0.0.1",
+                    "protocol": "dokodemo-door",
+                    "settings": ["address": "127.0.0.1"]
                 ]
             ],
             "outbounds": buildOutbounds(),
             "routing": [
                 "domainStrategy": "AsIs",
                 "rules": [
+                    ["type": "field", "inboundTag": ["api"], "outboundTag": "api"],
                     ["type": "field", "ip": ["geoip:private"], "outboundTag": "direct"],
                     ["type": "field", "domain": ["geosite:category-ads-all"], "outboundTag": "block"]
                 ]
