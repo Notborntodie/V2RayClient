@@ -72,6 +72,11 @@ else
     echo "  -> Warning: logo.png not found at $LOGO_PNG"
 fi
 
+# Ad-hoc 签名（避免显示"已损坏"）
+echo "[4.6/5] Signing app..."
+codesign --force --deep --sign - "$APP_BUNDLE"
+echo "  -> App signed (ad-hoc)"
+
 echo "[5/5] Creating DMG installer..."
 # 创建 DMG
 DMG_STAGING="$SCRIPT_DIR/tmp_dmg"

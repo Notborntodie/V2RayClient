@@ -25,7 +25,13 @@ Download the latest DMG from [Releases](https://github.com/Notborntodie/V2RayCli
 
 1. Open the DMG
 2. Drag **V2RayClient** to **Applications**
-3. Launch — on first open, right-click the app and select "Open" (required for unsigned apps)
+3. **首次打开**：右键点击 app → 选择"打开" → 点"打开"确认
+   （因未经过 Apple 公证，需手动确认）
+
+**如果显示"已损坏"**，在终端执行：
+```bash
+xattr -cr /Applications/V2RayClient.app
+```
 
 ## Build from Source
 
