@@ -17,8 +17,13 @@ struct DashboardView: View {
             }
             .padding(24)
         }
-        .onReceive(timer) { _ in refreshLogs() }
+        .onReceive(timer) { _ in
+            if viewModel.isConnected { refreshLogs() }
+        }
         .onAppear { refreshLogs() }
+        .onChange(of: viewModel.isConnected) { isConnected in
+            if !isConnected { connectionLogs = [] }
+        }
     }
 
     // MARK: - Hero Connection Card
