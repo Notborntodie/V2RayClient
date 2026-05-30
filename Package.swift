@@ -11,31 +11,16 @@ let package = Package(
         .executableTarget(
             name: "V2RayClient",
             path: ".",
-            exclude: ["Package.swift", "gen_xcodeproj.sh", "build_app.sh", "Info.plist", "dist"],
+            exclude: ["Package.swift", "gen_xcodeproj.sh", "build_app.sh", "Info.plist", "dist", "README.md", "setup-lele.sh", "AppIcon.icns"],
             sources: [
                 "App/V2RayClientApp.swift",
                 "App/AppDelegate.swift",
-                "Core/V2RayService.swift",
-                "Core/ConfigManager.swift",
+                "Core/BrewManager.swift",
                 "Core/SubscriptionManager.swift",
-                "Core/ProxyManager.swift",
-                "Models/ServerNode.swift",
-                "Models/Subscription.swift",
-                "Models/V2RayConfig.swift",
-                "Models/TrafficStats.swift",
+                "Models/Node.swift",
                 "ViewModels/MainViewModel.swift",
-                "ViewModels/ServerListViewModel.swift",
-                "ViewModels/SettingsViewModel.swift",
                 "Views/MainView.swift",
-                "Views/ServerListView.swift",
-                "Views/SubscriptionView.swift",
-                "Views/SettingsView.swift",
-                "Views/DashboardView.swift",
-                "Views/LogView.swift",
-                "Views/Components/CommonComponents.swift",
-                "Views/Components/StatusCard.swift",
-                "Views/Components/ConnectionLogRow.swift",
-                "Views/Components/AppFont.swift"
+                "Views/ConsoleView.swift"
             ]
         )
     ]

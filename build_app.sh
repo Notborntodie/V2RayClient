@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="V2RayClient"
 APP_BUNDLE="$SCRIPT_DIR/dist/$APP_NAME.app"
 DMG_PATH="$SCRIPT_DIR/dist/$APP_NAME.dmg"
-BINARY="$SCRIPT_DIR/.build/arm64-apple-macosx/release/$APP_NAME"
+BINARY="$SCRIPT_DIR/.build/release/$APP_NAME"
 V2RAY_CORE="$SCRIPT_DIR/../v2ray-core"
 LOGO_PNG="$SCRIPT_DIR/../logo.png"
 

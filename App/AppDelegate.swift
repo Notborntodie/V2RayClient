@@ -1,63 +1,45 @@
 import SwiftUI
+import UserNotifications
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    var statusItem: NSStatusItem?
-    var viewModel: MainViewModel?
+    static var shared: AppDelegate?
+    private var consoleWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        setupStatusBar()
+        Self.shared = self
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.showConsole()
+        }
+    }
+
+    @objc func showConsole() {
+        if let window = consoleWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let viewModel = MainViewModel.shared
+        let consoleView = ConsoleView()
+            .environmentObject(viewModel)
+        let hosting = NSHostingView(rootView: consoleView)
+        hosting.frame = NSRect(x: 0, y: 0, width: 400, height: 500)
+
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
+                              styleMask: [.titled, .closable, .miniaturizable],
+                              backing: .buffered, defer: false)
+        window.title = "V2Ray"
+        window.center()
+        window.contentView = hosting
+        window.isReleasedWhenClosed = false
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        consoleWindow = window
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // 断开连接并清理代理设置
-        viewModel?.disconnect()
-    }
-
-    // MARK: - Status Bar
-
-    private func setupStatusBar() {
-        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        self.statusItem = statusItem
-
-        if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "network", accessibilityDescription: "V2Ray")
-            button.action = #selector(statusBarClicked)
-            button.target = self
-        }
-
-        let menu = NSMenu()
-        menu.addItem(withTitle: "显示主窗口", action: #selector(showMainWindow), keyEquivalent: "")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "连接", action: #selector(connectAction), keyEquivalent: "")
-        menu.addItem(withTitle: "断开", action: #selector(disconnectAction), keyEquivalent: "")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "退出", action: #selector(quitAction), keyEquivalent: "q")
-        statusItem.menu = menu
-    }
-
-    @objc private func statusBarClicked() {
-        showMainWindow()
-    }
-
-    @objc private func showMainWindow() {
-        if let window = NSApp.windows.first(where: { $0.isVisible }) {
-            window.makeKeyAndOrderFront(nil)
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
-        }
-    }
-
-    @objc private func connectAction() {
-        if let node = viewModel?.selectedNode {
-            viewModel?.connect(to: node)
-        }
-    }
-
-    @objc private func disconnectAction() {
-        viewModel?.disconnect()
-    }
-
-    @objc private func quitAction() {
-        NSApp.terminate(nil)
+        _ = BrewManager.shared.disableSystemProxy()
     }
 }
