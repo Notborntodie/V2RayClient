@@ -133,7 +133,7 @@ class SubscriptionManager {
             add: json["add"] as? String ?? "",
             port: Int(json["port"] as? String ?? "0") ?? 0,
             uuid: json["id"] as? String ?? "",
-            aid: Int(json["aid"] as? String ?? "0") ?? 0,
+            aid: (json["aid"] as? Int) ?? Int(json["aid"] as? String ?? "0") ?? 0,
             scy: json["scy"] as? String ?? "auto",
             net: json["net"] as? String ?? "tcp",
             type: json["type"] as? String ?? "none",
